@@ -37,7 +37,6 @@ class DynamicGMMClustering:
         # 이전 스텝의 군집(그룹) 유지용
         self.prev_assign = None  # shape: [n_agents]
         self.prev_groups = [list(range(n_agents))]
-        self.prev_probs = None  # 확률 저장을 위한 초기화 추가
 
     @staticmethod
     def _assign_to_groups(labels, n_agents):
@@ -93,40 +92,58 @@ class DynamicGMMClustering:
         return labels, gm
 
     def update_groups(self, state_history, stability_threshold=0.0):
-        # ---- 입력 전처리: 에이전트별 특징 벡터 생성
-        sh = torch.as_tensor(state_history) if not isinstance(state_history, torch.Tensor) else state_history
-        
-        # 마지막 타임스텝의 에이전트별 상태 추출 (SMAC 환경 가정: [B, T, n_agents, feat])
-        X_last = sh[:, -1]  # [B, n_agents, feat]
-        if X_last.dim() == 3:
-            F = X_last.mean(dim=0)  # [n_agents, feat] - 배치 평균
+        """
+        Args:
+          state_history: Tensor [B, T, state_dim] 혹은 [B, T, ...]
+                         여기서는 '현재 시점에서 각 에이전트의 상태'를 만들기 위해
+                         마지막 시점의 상태에서 에이전트 차원을 풀어 만드는 방식 사용.
+          stability_threshold: (0~1) 비율. 라벨 변경 비율이 이보다 작으면 '갱신하지 않음'.
+
+        Returns:
+          updated(bool), new_groups(List[List[int]]), num_moved(int)
+        """
+        # ---- 입력 전처리: 마지막 타임스텝 기준의 (batch 평균) 상태 벡터 생성
+        # state_history: [B, T, state_dim] or [B, T, n_agents, ...]
+        sh = state_history
+        if isinstance(sh, torch.Tensor):
+            X = sh
         else:
-            raise ValueError("state_history shape mismatch: expected [B, T, n_agents, feat]")
+            X = torch.as_tensor(sh)
+
+        # 마지막 시점만 선택
+        X_last = X[:, -1]
+
+        # 에이전트 단위의 특징 벡터 만들기:
+        # 상태에 에이전트 차원이 이미 있다면(예: [B, n_agents, feat]), 그걸 평균(B)으로 축소
+        # 아니라면(전역상태) 에이전트별 관측/특징으로 바꾸는 별도 로직이 필요할 수 있음.
+        # 여기서는 HYGMA 원 코드를 최대한 보존하기 위해 '전역 상태를 에이전트별로 동일하게 배정'하는 보수적 처리:
+        if X_last.dim() == 3:        # [B, n_agents, feat]
+            F = X_last.mean(dim=0)   # [n_agents, feat]
+        elif X_last.dim() == 2:      # [B, feat] (전역)
+            F = X_last.mean(dim=0, keepdim=True).repeat(self.n_agents, 1)  # [n_agents, feat]
+        else:
+            F = X_last.reshape(X_last.size(0), -1).mean(dim=0, keepdim=True).repeat(self.n_agents, 1)
 
         F_np = F.detach().cpu().numpy()
 
         # ---- GMM 피팅 & 라벨 예측
-        labels, gm = self._fit_gmm_and_predict(F_np)
-        probs = gm.predict_proba(F_np)  # [n_agents, k]
+        labels, _ = self._fit_gmm_and_predict(F_np)
 
         # ---- 안정성 체크: 이전 할당 대비 이동 비율
         if self.prev_assign is None:
-            moved = self.n_agents
-            prev_probs = probs  # For first time, use current
+            moved = self.n_agents  # 첫 갱신으로 간주
         else:
             moved = int((labels != self.prev_assign).sum())
-            prev_probs = self.prev_probs if self.prev_probs is not None else probs
 
         move_ratio = moved / float(self.n_agents)
         if stability_threshold > 0.0 and move_ratio < stability_threshold:
             # 변경은 있었지만 임계치 미만이면 '유지'
-            return False, self.prev_groups, moved, prev_probs  # Return previous probs
+            return False, self.prev_groups, moved
 
         # ---- 그룹 생성 및 저장
         new_groups = self._assign_to_groups(labels, self.n_agents)
         self.prev_assign = labels
         self.prev_groups = new_groups
-        self.prev_probs = probs
         updated = True
 
-        return updated, new_groups, moved, probs  # Return new probs
+        return updated, new_groups, moved

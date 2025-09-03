@@ -44,7 +44,6 @@ class GMMHYGMA(nn.Module):
 
         # 초기 그룹: 모든 에이전트 한 그룹
         self.agent_groups = [list(range(self.n_agents))]
-        self.current_probs = None  # 초기 probs를 None으로 설정
 
         # Agent & HGCN 구성
         self._build_agents(self.input_shape)
@@ -66,7 +65,6 @@ class GMMHYGMA(nn.Module):
         self.training_steps = 0
         self.fix_hgcn_steps = args.fix_hgcn_steps
         self.fix_grouping_steps = args.fix_grouping_steps
-        
 
     # -------- 핵심 실행 경로 ----------
     def select_actions(self, ep_batch, t_ep, t_env, bs=slice(None), test_mode=False):
@@ -82,15 +80,12 @@ class GMMHYGMA(nn.Module):
         agent_inputs = self._build_inputs(ep_batch, t)
         avail_actions = ep_batch["avail_actions"][:, t]
 
-        # 초기 probs는 self.current_probs 사용, 갱신 전까지 유지
-        probs = self.current_probs
-
         # 학습 초반 그룹 고정 기간이 끝나면 일정 주기로 GMM 재군집
         if (not test_mode) and (self.training_steps < self.fix_grouping_steps):
             if t_env - self.last_clustering_step >= self.clustering_interval:
                 start_time = time.time()
                 state_history = self._get_state_history(ep_batch, t)
-                updated, new_groups, num_moved, new_probs = self.clustering.update_groups(
+                updated, new_groups, num_moved = self.clustering.update_groups(
                     state_history, self.stability_threshold
                 )
                 if updated:
@@ -98,14 +93,12 @@ class GMMHYGMA(nn.Module):
                     self.last_clustering_step = t_env
                     # HGCN의 그룹 수만 갱신(가중치 보존)
                     self.hgcn.update_groups(len(new_groups))
-                    self.current_probs = new_probs  # probs 업데이트
-                    probs = new_probs  # 현재 forward에서 사용
 
         # [B, n_agents, feat]
         agent_inputs = agent_inputs.view(ep_batch.batch_size, self.n_agents, -1)
 
-        # 하이퍼그래프 구성 (probs가 None일 경우 하드 할당 사용)
-        hypergraph = self._create_hypergraph(self.agent_groups, ep_batch.batch_size, probs)
+        # 하이퍼그래프 구성
+        hypergraph = self._create_hypergraph(self.agent_groups, ep_batch.batch_size)
 
         # HGCN 통과 (그룹 특성 추출)
         hgcn_features = self.hgcn(agent_inputs, hypergraph)
@@ -127,7 +120,7 @@ class GMMHYGMA(nn.Module):
                 if getattr(self.args, "mask_before_softmax", True):
                     epsilon_action_num = reshaped_avail_actions.sum(dim=1, keepdim=True).float()
                 agent_outs = ((1 - self.action_selector.epsilon) * agent_outs
-                             + th.ones_like(agent_outs) * self.action_selector.epsilon / epsilon_action_num)
+                              + th.ones_like(agent_outs) * self.action_selector.epsilon / epsilon_action_num)
                 if getattr(self.args, "mask_before_softmax", True):
                     agent_outs[reshaped_avail_actions == 0] = 0.0
 
@@ -135,26 +128,22 @@ class GMMHYGMA(nn.Module):
             self.training_steps += 1
 
         return agent_outs.view(ep_batch.batch_size, self.n_agents, -1)
-    
-    def _create_hypergraph(self, groups, batch_size, probs=None):
+
+    # -------- 유틸/헬퍼 ----------
+
+    def _create_hypergraph(self, groups, batch_size):
         """그룹-노드 연결을 나타내는 초그래프(하이퍼그래프) 인시던스 텐서 [B, n_groups, n_agents]."""
         n_groups = len(groups)
         device = next(self.parameters()).device
         H = torch.zeros(batch_size, n_groups, self.n_agents, device=device)
-        if probs is not None:
-            probs_t = torch.tensor(probs, device=device)  # [n_agents, n_groups]
-            if probs_t.shape[0] != self.n_agents or probs_t.shape[1] != n_groups:
-                raise ValueError(f"Probs shape {probs_t.shape} mismatch with n_agents={self.n_agents}, n_groups={n_groups}")
-            H[:, :, :] = probs_t.unsqueeze(0)  # Broadcast to [B, n_groups, n_agents]
-        else:
-            for gi, g in enumerate(groups):
-                H[:, gi, g] = 1
+        for gi, g in enumerate(groups):
+            H[:, gi, g] = 1
         return H
 
     def _get_state_history(self, ep_batch, t):
-        history_length = min(self.args.state_history_length, t + 1)
-        start = max(0, t - history_length + 1)
-        return ep_batch["obs"][:, start:t + 1]  # [B, T, n_agents, obs_dim]
+        history_len = min(self.args.state_history_length, t + 1)
+        start = max(0, t - history_len + 1)
+        return ep_batch["state"][:, start:t + 1]
 
     def get_attention_weights(self):
         return self.hgcn.get_attention_weights() if hasattr(self.hgcn, "get_attention_weights") else None

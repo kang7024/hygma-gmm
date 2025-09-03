@@ -39,7 +39,10 @@ def plot_mean_return(result_dir):
     plt.title(f"Training Return for {os.path.basename(result_dir)}")
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    #plt.show()
+    plt.savefig('output_plot.png')  # 원하는 경로와 파일명으로 변경
+    plt.close()  # 메모리 해제를 위해 플롯 닫기
+
 
 # 스크립트 실행
 if __name__ == '__main__':
