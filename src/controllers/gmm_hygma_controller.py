@@ -145,10 +145,15 @@ class GMMHYGMA(nn.Module):
             probs_t = torch.tensor(probs, device=device)  # [n_agents, n_groups]
             if probs_t.shape[0] != self.n_agents or probs_t.shape[1] != n_groups:
                 raise ValueError(f"Probs shape {probs_t.shape} mismatch with n_agents={self.n_agents}, n_groups={n_groups}")
-            H[:, :, :] = probs_t.unsqueeze(0)  # Broadcast to [B, n_groups, n_agents]
+            # [n_agents, n_groups] → [n_groups, n_agents]로 transpose
+            probs_t = probs_t.T  # [n_groups, n_agents]
+            # [n_groups, n_agents] → [batch_size, n_groups, n_agents]로 확장
+            H = probs_t.unsqueeze(0).expand(batch_size, -1, -1)  # [B, n_groups, n_agents]
         else:
-            for gi, g in enumerate(groups):
-                H[:, gi, g] = 1
+            # 초기 None 시 uniform 소프트 probs로 대체
+            uniform_probs = torch.ones(n_groups, self.n_agents, device=device) / n_groups
+            H = uniform_probs.unsqueeze(0).expand(batch_size, -1, -1)  # [B, n_groups, n_agents]
+            # 또는 기존 하드: for gi, g in enumerate(groups): H[:, gi, g] = 1
         return H
 
     def _get_state_history(self, ep_batch, t):

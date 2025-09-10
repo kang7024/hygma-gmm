@@ -40,7 +40,7 @@ def plot_mean_return(result_dir):
     plt.grid(True)
     plt.tight_layout()
     #plt.show()
-    plt.savefig('output_plot.png')  # 원하는 경로와 파일명으로 변경
+    plt.savefig('output_smac_plot.png')  # 원하는 경로와 파일명으로 변경
     plt.close()  # 메모리 해제를 위해 플롯 닫기
 
 
