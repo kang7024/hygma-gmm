@@ -99,7 +99,10 @@ class GMMHYGMA(nn.Module):
                     # HGCN의 그룹 수만 갱신(가중치 보존)
                     self.hgcn.update_groups(len(new_groups))
                     self.current_probs = new_probs  # probs 업데이트
-                    probs = new_probs  # 현재 forward에서 사용
+                else:
+                    # 업데이트가 없을 때도 probs를 유지
+                    new_probs = self.current_probs
+                probs = new_probs  # 현재 forward에서 사용
 
         # [B, n_agents, feat]
         agent_inputs = agent_inputs.view(ep_batch.batch_size, self.n_agents, -1)

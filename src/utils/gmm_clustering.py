@@ -18,16 +18,16 @@ class DynamicGMMClustering:
     """
     def __init__(
         self,
-        min_k: int,
-        max_k: int,
-        n_agents: int,
-        cov_type: str = "full",
-        reg_covar: float = 1e-6,
-        random_state: int = 1,
-        use_bic_select: bool = True,
+        min_clusters: int, # 최소 클러스터 개수
+        max_clusters: int, # 최대 클러스터 개수
+        n_agents: int, # 전체 에이전트 수
+        cov_type: str = "full", # GMM 공분산 형태 : full", "tied", "diag", "spherical"
+        reg_covar: float = 1e-6, # 공분산 행렬의 수치적 안정성 위해 추가하는 작은 값
+        random_state: int = 1, # 난수 시드 고정
+        use_bic_select: bool = True, # Tue면 BIC로 k 선택, False면 max_k 고정
     ):
-        self.min_k = min_k
-        self.max_k = max_k
+        self.min_k = min_clusters
+        self.max_k = max_clusters
         self.n_agents = n_agents
         self.cov_type = cov_type
         self.reg_covar = reg_covar
@@ -35,13 +35,13 @@ class DynamicGMMClustering:
         self.use_bic_select = use_bic_select
 
         # 이전 스텝의 군집(그룹) 유지용
-        self.prev_assign = None  # shape: [n_agents]
-        self.prev_groups = [list(range(n_agents))]
-        self.prev_probs = None  # 확률 저장을 위한 초기화 추가
+        self.prev_assign = None  # 이전 군집 라벨 저장, shape: [n_agents]
+        self.prev_groups = [list(range(n_agents))] # 이전 그룹 구조, 초기에는 모두 한 그룹
+        self.prev_probs = None  # 이전 군집 확률 분포 저장
 
     @staticmethod
     def _assign_to_groups(labels, n_agents):
-        """라벨(길이 n_agents)을 그룹(인덱스 리스트들의 리스트)으로 변환."""
+        """라벨(길이 n_agents)을 그룹(인덱스 리스트들의 리스트)으로 변환"""
         groups = {}
         for i, lab in enumerate(labels):
             groups.setdefault(int(lab), []).append(i)
@@ -53,7 +53,7 @@ class DynamicGMMClustering:
         return groups_list
 
     def _select_k_by_bic(self, X):
-        """[min_k, max_k] 범위에서 BIC가 최소인 k를 선택."""
+        """[min_k, max_k] 범위에서 BIC가 최소인 k를 선택"""
         best_k, best_bic, best_model = None, float("inf"), None
         for k in range(self.min_k, self.max_k + 1):
             gm = GaussianMixture(
