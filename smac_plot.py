@@ -1,7 +1,12 @@
+import matplotlib
+# 백엔드를 'TkAgg'로 지정합니다.
+# 다른 백엔드(Qt5Agg, WxAgg 등)를 사용할 수도 있습니다.
+matplotlib.use('TkAgg') 
 import json
 import matplotlib.pyplot as plt
 import os
 import sys
+import numpy as np # numpy 모듈 추가
 
 def plot_mean_return(result_dir):
     """
@@ -39,9 +44,18 @@ def plot_mean_return(result_dir):
     plt.title(f"Training Return for {os.path.basename(result_dir)}")
     plt.grid(True)
     plt.tight_layout()
-    #plt.show()
-    plt.savefig('output_smac_plot.png')  # 원하는 경로와 파일명으로 변경
-    plt.close()  # 메모리 해제를 위해 플롯 닫기
+
+    # --- 추가된 부분 시작 ---
+    # Y축 눈금 간격을 0.1로 설정
+    min_return = min(returns) if returns else 0
+    max_return = max(returns) if returns else 1
+    plt.yticks(np.arange(np.floor(min_return * 10) / 10, np.ceil(max_return * 10) / 10 + 0.1, 0.1))
+    # --- 추가된 부분 끝 ---
+
+
+    plt.show()
+    # plt.savefig('output_smac_plot.png')  # 원하는 경로와 파일명으로 변경
+    # plt.close()  # 메모리 해제를 위해 플롯 닫기
 
 
 # 스크립트 실행

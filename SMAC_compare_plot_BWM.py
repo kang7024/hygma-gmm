@@ -8,8 +8,8 @@ gmm_metrics_path = "results/sacred/gmm_hygma/3s5z_vs_3s6z/14/metrics.json"
 def load_returns(filepath, max_timestep=None):
     with open(filepath, "r") as f:
         data = json.load(f)
-    steps = data["return_mean"]["steps"]
-    returns = data["return_mean"]["values"]
+    steps = data["battle_won_mean"]["steps"]
+    returns = data["battle_won_mean"]["values"]
 
     # 타임스텝 잘라내기
     if max_timestep is not None:
@@ -29,7 +29,7 @@ plt.figure(figsize=(10, 6))
 plt.plot(base_steps, base_returns, marker='o', label='Base(HYGMA)')
 plt.plot(gmm_steps, gmm_returns, marker='o', label='Ours(GMM-HYGMA)')
 plt.xlabel('Timesteps')
-plt.ylabel('Return Mean')
+plt.ylabel('Battle Won Mean')
 plt.title(f'Base vs Ours on SMAC 3s5z_vs_3s6z')
 plt.legend()
 plt.grid(True)

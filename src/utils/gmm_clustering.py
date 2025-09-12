@@ -18,16 +18,16 @@ class DynamicGMMClustering:
     """
     def __init__(
         self,
-        min_clusters: int, # 최소 클러스터 개수
-        max_clusters: int, # 최대 클러스터 개수
+        min_k: int, # 최소 클러스터 개수
+        max_k: int, # 최대 클러스터 개수
         n_agents: int, # 전체 에이전트 수
         cov_type: str = "full", # GMM 공분산 형태 : full", "tied", "diag", "spherical"
         reg_covar: float = 1e-6, # 공분산 행렬의 수치적 안정성 위해 추가하는 작은 값
         random_state: int = 1, # 난수 시드 고정
         use_bic_select: bool = True, # Tue면 BIC로 k 선택, False면 max_k 고정
     ):
-        self.min_k = min_clusters
-        self.max_k = max_clusters
+        self.min_k = min_k
+        self.max_k = max_k
         self.n_agents = n_agents
         self.cov_type = cov_type
         self.reg_covar = reg_covar
@@ -52,20 +52,63 @@ class DynamicGMMClustering:
             groups_list = [list(range(n_agents))]
         return groups_list
 
-    def _select_k_by_bic(self, X):
+    def _select_k_by_bic(self, X, n_init=5, max_iter=200, tol=1e-3, force_covariance=None):
         """[min_k, max_k] 범위에서 BIC가 최소인 k를 선택"""
         best_k, best_bic, best_model = None, float("inf"), None
-        for k in range(self.min_k, self.max_k + 1):
+        cov_type = force_covariance if force_covariance is not None else self.cov_type # add 250911
+
+                # 방어: 샘플 수가 너무 작으면 최대 k 제한
+        n_samples, d = X.shape
+        practical_max_k = min(self.max_k, max(1, n_samples - 1))  # k <= n_samples-1
+
+        # for k in range(self.min_k, self.max_k + 1):
+        #     gm = GaussianMixture(
+        #         n_components=k,
+        #         covariance_type=self.cov_type,
+        #         reg_covar=self.reg_covar,
+        #         random_state=self.random_state,
+        #     )
+        #     gm.fit(X)
+        #     bic = gm.bic(X)
+        #     if bic < best_bic:
+        #         best_k, best_bic, best_model = k, bic, gm
+        # return best_k, best_model
+
+        for k in range(self.min_k, practical_max_k + 1):
             gm = GaussianMixture(
                 n_components=k,
-                covariance_type=self.cov_type,
+                covariance_type=cov_type,
                 reg_covar=self.reg_covar,
                 random_state=self.random_state,
+                n_init=n_init,
+                max_iter=max_iter,
+                tol=tol,
+                init_params='kmeans'
             )
-            gm.fit(X)
+            try:
+                gm.fit(X)
+            except Exception as e:
+                # 만약 수치적 문제가 발생하면 건너뛰기
+                continue
+
             bic = gm.bic(X)
             if bic < best_bic:
                 best_k, best_bic, best_model = k, bic, gm
+
+        # 만약 아무것도 선택되지 않았다면 최소값 반환
+        if best_model is None:
+            # fallback: k = min_k로 학습
+            gm = GaussianMixture(
+                n_components=max(self.min_k, 1),
+                covariance_type=cov_type,
+                reg_covar=self.reg_covar,
+                random_state=self.random_state,
+                n_init=n_init,
+                max_iter=max_iter
+            )
+            gm.fit(X)
+            return max(self.min_k, 1), gm
+
         return best_k, best_model
 
     def _fit_gmm_and_predict(self, X, force_k=None):
