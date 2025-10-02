@@ -21,8 +21,8 @@ env_args:
   reward_scale_rate: 20
   reward_sparse: False
   reward_win: 200
-  replay_dir: ""
-  replay_prefix: ""
+  replay_dir: "/home/rys/dev_yonsei/epymarl/3rdparty/StarCraftII/Replays"
+  replay_prefix: "rys"
   state_last_action: False
   state_timestep_number: False
   step_mul: 8
@@ -38,4 +38,5 @@ log_interval: 50000
 runner_log_interval: 10000
 learner_log_interval: 10000
 #t_max: 2050000
-t_max: 5000000
+#t_max: 5000000
+t_max: 10000000

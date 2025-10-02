@@ -2,8 +2,8 @@ import json
 import matplotlib.pyplot as plt
 
 # 파일 경로 지정
-hygma_metrics_path = "results/sacred/hygma/lbforaging-Foraging-7x7-4p-4f-v3/1/metrics.json"
-gmm_hygma_metrics_path = "results/sacred/hygma/lbforaging-Foraging-7x7-4p-4f-v3/5/metrics.json"
+hygma_metrics_path = "results/sacred/hygma/lbforaging-Foraging-7x7-4p-4f-v3/2/metrics.json"
+gmm_hygma_metrics_path = "results/sacred/hygma/lbforaging-Foraging-7x7-4p-4f-v3/15/metrics.json"
 
 def load_returns(filepath, max_timestep=None):
     with open(filepath, "r") as f:
@@ -18,7 +18,7 @@ def load_returns(filepath, max_timestep=None):
     return list(steps), list(returns)
 
 # 비교할 최대 timestep 지정 (예: 100000)
-max_timestep = 5000000
+max_timestep = 10000000
 
 # 데이터 로드
 hygma_steps, hygma_returns = load_returns(hygma_metrics_path, max_timestep=max_timestep)

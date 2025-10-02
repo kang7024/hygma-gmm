@@ -39,11 +39,11 @@ hypernet_embed: 64
 
 # Clustering related configuration
 clustering_interval: 100000  # Check clustering every 100000 timesteps (안정성 유지)
-state_history_length: 1000  # State history length for clustering (데이터 풍부화)
+state_history_length: 5000  # State history length for clustering (데이터 풍부화)
 behavior_history_length: 5000  # Behavior history length for clustering
-stability_threshold: 0.3  # Keep existing grouping if less than 30% of agents need to move (적당한 민감도)
+stability_threshold: 0.6  # Keep existing grouping if less than 30% of agents need to move (적당한 민감도)
 min_clusters: 2  # Minimum number of clusters
-max_clusters: 4  # Maximum number of clusters (유연성 증가)
+max_clusters: 3  # Maximum number of clusters (유연성 증가)
 
 # Fixed grouping steps
 fix_grouping_steps: 2  # Fix grouping for initial 2 steps

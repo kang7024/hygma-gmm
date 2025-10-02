@@ -2,8 +2,11 @@ import json
 import matplotlib.pyplot as plt
 
 # 파일 경로 지정
-base_metrics_path = "results/sacred/hygma/3s5z_vs_3s6z/1/metrics.json"
-gmm_metrics_path = "results/sacred/gmm_hygma/3s5z_vs_3s6z/14/metrics.json"
+#base_metrics_path = "results/sacred/hygma/3s5z_vs_3s6z/2/metrics.json"
+#gmm_metrics_path = "results/sacred/gmm_hygma/3s5z_vs_3s6z/16/metrics.json"
+
+base_metrics_path = "results/sacred/hygma/corridor/2/metrics.json"
+gmm_metrics_path = "results/sacred/gmm_hygma/corridor/2/metrics.json"
 
 def load_returns(filepath, max_timestep=None):
     with open(filepath, "r") as f:
@@ -30,7 +33,8 @@ plt.plot(base_steps, base_returns, marker='o', label='Base(HYGMA)')
 plt.plot(gmm_steps, gmm_returns, marker='o', label='Ours(GMM-HYGMA)')
 plt.xlabel('Timesteps')
 plt.ylabel('Battle Won Mean')
-plt.title(f'Base vs Ours on SMAC 3s5z_vs_3s6z')
+#plt.title(f'Base vs Ours on SMAC 3s5z_vs_3s6z')
+plt.title(f'Base vs Ours on SMAC(Corridor MAP)')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()

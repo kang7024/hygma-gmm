@@ -15,7 +15,7 @@ weight_decay: 0.01  # Weight decay
 
 #runner: "parallel"
 batch_size_run: 1 # Number of environments to run in parallel
-runner: "episode"# Runs 1 env for an episode
+runner: "episode" # Runs 1 env for an episode
 
 mac: "hygma_mac"
 
