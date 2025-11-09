@@ -101,7 +101,16 @@ class EpisodeBatch:
 
             dtype = self.scheme[k].get("dtype", th.float32)
             if type(v) == list:
-                v = th.tensor(np.array(v), dtype=dtype, device=self.device)
+                # 리스트 안에 텐서가 들어온 경우(CUDA 포함) 안전 처리
+                if len(v) > 0 and isinstance(v[0], th.Tensor):
+                    # detach + device 정렬 + stack
+                    v = th.stack([t.detach().to(self.device) for t in v], dim=0)
+                    # dtype 강제 캐스팅 (필요 시)
+                    if v.dtype != dtype:
+                        v = v.to(dtype=dtype)
+                else:
+                    # 일반 파이썬/넘파이 리스트는 기존 경로
+                    v = th.tensor(np.array(v), dtype=dtype, device=self.device)
             self._check_safe_view(v, target[k][_slices])
             target[k][_slices] = v.view_as(target[k][_slices])
 
