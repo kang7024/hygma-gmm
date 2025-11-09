@@ -47,10 +47,17 @@ class AttQLearner:
             self.params += list(self.mixer.parameters())
             self.target_mixer = copy.deepcopy(self.mixer)
 
+        # 일부 설정이 문자열로 들어오는 환경(예: sacred/yaml 로딩) 대비: 안전 캐스팅
+        def _as_float(x):
+            return float(x) if isinstance(x, str) else x
+
+        lr = _as_float(args.lr)
+        alpha = _as_float(getattr(args, "optim_alpha", 0.99))
+        eps = _as_float(getattr(args, "optim_eps", 1e-8))
         self.optimiser = RMSprop(params=self.params,
-                                 lr=args.lr,
-                                 alpha=args.optim_alpha,
-                                 eps=args.optim_eps)
+                                 lr=lr,
+                                 alpha=alpha,
+                                 eps=eps)
 
         # target MAC
         self.target_mac = copy.deepcopy(mac)
