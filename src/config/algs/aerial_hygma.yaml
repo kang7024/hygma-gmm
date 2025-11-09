@@ -1,0 +1,81 @@
+# --- AERIAL-HGCN-QMIX specific parameters ---
+
+# Epsilon-greedy
+action_selector: "epsilon_greedy"
+epsilon_start: 1.0
+epsilon_finish: 0.05
+epsilon_anneal_time: 100000
+evaluation_epsilon: 0.0
+
+# Optimizer (AdamW를 쓰신다면 learner/optimizer 쪽에서 사용)
+optim_beta1: 0.9
+optim_beta2: 0.999
+optim_eps: 1e-8
+weight_decay: 0.01
+
+# Runner
+batch_size_run: 1
+runner: "episode"   # 1 env per episode
+
+# --- Core switches (AERIAL + rect) ---
+mac: "aerial_hygma_mac"     # ← 새 컨트롤러
+learner: "att_q_learner"    # ← rect 우선 사용하도록 만든 learner
+mixer: "qmix_rect"          # ← rect를 상태 대신 받아들이는 QMIX 변형
+
+# Replay / batch
+use_rnn: True
+batch_size: 128
+buffer_size: 5000
+
+# Target network update
+target_update_interval: 200
+
+# Agent output / Q-learning
+agent_output_type: "q"
+double_q: True
+
+# QMIX (하이퍼넷 설정은 기존과 동일)
+mixing_embed_dim: 32
+hypernet_layers: 2
+hypernet_embed: 64
+
+# ---------------- AERIAL Transformer / rect ----------------
+use_hidden_state_transformer: True
+
+# rect_dim은 환경 state_shape의 총 차원과 반드시 일치해야 함 (예: SMAC 맵마다 상이)
+# 예시 값이므로, 실제 실행 전 env.get_env_info()["state_shape"] 확인 후 수정하세요.
+rect_dim: 128    # <<< 반드시 np.prod(state_shape)로 맞추기!
+
+# 트랜스포머 내부 차원 (에이전트 RNN hidden_dim과 동일해야 함)
+# 보통 agent RNN hidden_dim이 64/128 등으로 세팅되어 있음
+hidden_state_transformer_dim: 64
+
+# 트랜스포머 블록 설정
+hidden_state_transformer_heads: 1
+hidden_state_transformer_layers: 1
+hidden_state_transformer_ff_multiplier: 2
+hidden_state_transformer_dropout: 0.0
+
+# ---------------- HGCN / 군집 ----------------
+clustering_interval: 100000
+state_history_length: 5000
+behavior_history_length: 5000
+stability_threshold: 0.6
+min_clusters: 2
+max_clusters: 3
+
+# 고정 스텝
+fix_grouping_steps: 2
+fix_hgcn_steps: 2
+
+# HGCN 설정
+hgcn_out_dim: 48
+hgcn_hidden_dim: 64
+hgcn_num_layers: 2
+
+# Loss (있다면)
+lambda_consistency: 0.001
+lambda_attention: 0.01
+
+# Name tag
+name: "aerial_hygma"
