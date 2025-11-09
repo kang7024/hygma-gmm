@@ -150,12 +150,12 @@ class EpisodeRunner:
         last_update = {"actions": actions}
 
          # --- 마지막 rect도 기록 (타깃용 rect[:, 1:] 맞추기) ---
-         if getattr(self.args, "use_hidden_state_transformer", False):
-             rect_last = self.mac.get_last_transformer_out()
-             if rect_last is not None:
-                 last_update["rect"] = [rect_last.squeeze(0)]
+        if getattr(self.args, "use_hidden_state_transformer", False):
+            rect_last = self.mac.get_last_transformer_out()
+            if rect_last is not None:
+                last_update["rect"] = [rect_last.squeeze(0)]
  
-         self.batch.update(last_update, ts=self.t)
+        self.batch.update(last_update, ts=self.t)
 
         cur_stats = self.test_stats if test_mode else self.train_stats
         cur_returns = self.test_returns if test_mode else self.train_returns
