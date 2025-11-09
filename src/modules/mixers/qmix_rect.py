@@ -33,6 +33,7 @@ class QMixerRect(nn.Module):
                 # EpisodeRunner.setup에서 args.rect_dim을 세팅하도록 했으므로 여기서도 fallback
                 self.state_dim = int(getattr(args, "rect_dim"))
 
+        self.rect_dim = self.state_dim
         self.embed_dim = args.mixing_embed_dim
 
         # Hypernetwork setup (same options as original QMixer)
