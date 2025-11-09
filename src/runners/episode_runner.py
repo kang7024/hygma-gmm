@@ -1,6 +1,8 @@
 from functools import partial
 
 import numpy as np
+import torch as th
+import math
 
 from components.episode_buffer import EpisodeBatch
 from envs import REGISTRY as env_REGISTRY
@@ -40,20 +42,49 @@ class EpisodeRunner:
         self.log_train_stats_t = -1000000
 
     def setup(self, scheme, groups, preprocess, mac):
-        # ▼ AERIAL/rect 활성 시 rect_dim을 환경에서 자동으로 계산하여 스키마 등록
+        # ▼ AERIAL/rect 활성 시 rect_dim을 환경/스키마/args에서 안전하게 계산
         if getattr(self.args, "use_hidden_state_transformer", False):
-            env_info = self.env.get_env_info()
-            state_shape = env_info.get("state_shape")
-            # state_shape가 int 또는 tuple일 수 있음 → 총 차원수로 환산
-            if isinstance(state_shape, int):
-                rect_dim = int(state_shape)
-            else:
-                import numpy as _np
-                rect_dim = int(_np.prod(state_shape))
-            # 필요하면 args에도 심어두면 이후 참조에 편함
-            setattr(self.args, "rect_dim", rect_dim)
+            rect_dim = None
+    
+            # 1) env에서 가져오기
+            try:
+                env_info = self.env.get_env_info()
+                state_shape = env_info.get("state_shape", None)
+                if state_shape is not None:
+                    if isinstance(state_shape, int):
+                        rect_dim = int(state_shape)
+                    else:
+                        rect_dim = int(math.prod(state_shape))
+            except Exception:
+                pass
+    
+            # 2) 스키마에 state가 있으면 거기서 계산
+            if rect_dim is None and "state" in scheme:
+                vshape = scheme["state"].get("vshape", None)
+                if vshape is not None:
+                    if isinstance(vshape, int):
+                        rect_dim = int(vshape)
+                    else:
+                        rect_dim = int(math.prod(vshape))
+    
+            # 3) 마지막 대안: args에 이미 넣어둔 rect_dim 사용
+            if rect_dim is None:
+                rect_dim = getattr(self.args, "rect_dim", None)
+    
+            # 4) 그래도 못 찾으면 명확히 에러
+            if rect_dim is None:
+                raise RuntimeError(
+                    "use_hidden_state_transformer=True 인데 rect_dim을 계산할 수 없습니다. "
+                    "env.get_env_info()['state_shape']가 없고, scheme['state']['vshape']도 없으며, "
+                    "args.rect_dim도 비어있습니다. 셋 중 하나를 제공해 주세요."
+                )
+    
+            # args에 주입 (다른 모듈들이 참조할 수 있도록)
+            setattr(self.args, "rect_dim", int(rect_dim))
+    
+            # 스키마에 rect 등록(없을 때만)
             if "rect" not in scheme:
-                scheme["rect"] = {"vshape": (rect_dim,), "dtype": th.float32}
+                scheme["rect"] = {"vshape": (int(rect_dim),), "dtype": th.float32}
             
         self.new_batch = partial(
             EpisodeBatch,
