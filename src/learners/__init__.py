@@ -7,7 +7,7 @@ from .actor_critic_pac_dcg_learner import PACDCGLearner
 from .maddpg_learner import MADDPGLearner
 from .ppo_learner import PPOLearner
 from .hgcn_learner import HGCNQLearner
-from .att_q_learner import QLearner as AttQLearner
+from .att_q_learner import AttQLearner
 
 
 REGISTRY = {}
