@@ -41,9 +41,7 @@ class AttQLearner:
                 # rect_dim은 args.rect_dim (없으면 hidden_dim 사용)
                 rect_dim = getattr(args, "rect_dim", getattr(args, "hidden_dim", None))
                 assert rect_dim is not None, "rect_dim(or hidden_dim) must be provided for qmix_rect"
-                self.mixer = QMixerRect(n_agents=args.n_agents,
-                                        rect_dim=rect_dim,
-                                        embed_dim=getattr(args, "mixing_embed_dim", 32))
+                self.mixer = QMixerRect(args, rect_dim=getattr(args, "rect_dim", None))
             else:
                 raise ValueError(f"Mixer {args.mixer} not recognised.")
             self.params += list(self.mixer.parameters())
