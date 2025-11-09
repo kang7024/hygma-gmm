@@ -26,8 +26,8 @@ class HYGMA(nn.Module):
         self.hidden_states = None
 
         # 동적 클러스터링 초기화 (스펙트럼 or GMM)
-        # self.clustering = DynamicSpectralClustering(args.min_clusters, args.max_clusters, args.n_agents)
-        self.clustering = DynamicGMMClustering(args.min_clusters, args.max_clusters, args.n_agents)
+        self.clustering = DynamicSpectralClustering(args.min_clusters, args.max_clusters, args.n_agents)
+        # self.clustering = DynamicGMMClustering(args.min_clusters, args.max_clusters, args.n_agents)
         self.last_clustering_step = 0
         self.clustering_interval = args.clustering_interval
         self.stability_threshold = args.stability_threshold
