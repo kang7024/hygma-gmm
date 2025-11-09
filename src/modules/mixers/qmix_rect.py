@@ -18,14 +18,20 @@ class QMixerRect(nn.Module):
       * ELU hidden
     """
 
-    def __init__(self, args):
+    def __init__(self, args, rect_dim=None):
         super().__init__()
         self.args = args
         self.n_agents = args.n_agents
 
-        # rect_dim: prefer explicit rect_dim, else fallback to hidden_dim
-        self.rect_dim = int(getattr(args, "rect_dim", getattr(args, "hidden_dim", None)))
-        assert self.rect_dim is not None, "rect_dim (or hidden_dim) must be set for QMixerRect."
+        # rect_dim 우선 사용, 없으면 state_shape나 args.rect_dim에서 유도
+        if rect_dim is not None:
+            self.state_dim = int(rect_dim)
+        else:
+            if getattr(args, "state_shape", None) is not None:
+                self.state_dim = int(np.prod(args.state_shape))
+            else:
+                # EpisodeRunner.setup에서 args.rect_dim을 세팅하도록 했으므로 여기서도 fallback
+                self.state_dim = int(getattr(args, "rect_dim"))
 
         self.embed_dim = args.mixing_embed_dim
 
