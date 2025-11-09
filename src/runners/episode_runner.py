@@ -40,15 +40,20 @@ class EpisodeRunner:
         self.log_train_stats_t = -1000000
 
     def setup(self, scheme, groups, preprocess, mac):
-        # ▼ AERIAL/rect 활성 시 rect 스키마 등록
+        # ▼ AERIAL/rect 활성 시 rect_dim을 환경에서 자동으로 계산하여 스키마 등록
         if getattr(self.args, "use_hidden_state_transformer", False):
-            rect_dim = int(getattr(self.args, "rect_dim", 0))
-            assert rect_dim > 0, "use_hidden_state_transformer=True면 rect_dim을 지정해야 합니다."
+            env_info = self.env.get_env_info()
+            state_shape = env_info.get("state_shape")
+            # state_shape가 int 또는 tuple일 수 있음 → 총 차원수로 환산
+            if isinstance(state_shape, int):
+                rect_dim = int(state_shape)
+            else:
+                import numpy as _np
+                rect_dim = int(_np.prod(state_shape))
+            # 필요하면 args에도 심어두면 이후 참조에 편함
+            setattr(self.args, "rect_dim", rect_dim)
             if "rect" not in scheme:
-                scheme["rect"] = {
-                    "vshape": (rect_dim,),
-                    "dtype": th.float32,   # 전역(shared) transition 항목
-                }
+                scheme["rect"] = {"vshape": (rect_dim,), "dtype": th.float32}
             
         self.new_batch = partial(
             EpisodeBatch,
