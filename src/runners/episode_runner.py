@@ -40,6 +40,16 @@ class EpisodeRunner:
         self.log_train_stats_t = -1000000
 
     def setup(self, scheme, groups, preprocess, mac):
+        # ▼ AERIAL/rect 활성 시 rect 스키마 등록
+        if getattr(self.args, "use_hidden_state_transformer", False):
+            rect_dim = int(getattr(self.args, "rect_dim", 0))
+            assert rect_dim > 0, "use_hidden_state_transformer=True면 rect_dim을 지정해야 합니다."
+            if "rect" not in scheme:
+                scheme["rect"] = {
+                    "vshape": (rect_dim,),
+                    "dtype": th.float32,   # 전역(shared) transition 항목
+                }
+            
         self.new_batch = partial(
             EpisodeBatch,
             scheme,
@@ -90,6 +100,11 @@ class EpisodeRunner:
                 self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode
             )
 
+            # ▼ rect 가져오기 (B=1 가정)
+            rect = None
+            if getattr(self.args, "use_hidden_state_transformer", False):
+                rect = self.mac.get_last_transformer_out()  # shape: (1, R) or (B, R)
+
             _, reward, terminated, truncated, env_info = self.env.step(actions[0])
             terminated = terminated or truncated
             if test_mode and self.args.render:
@@ -104,6 +119,11 @@ class EpisodeRunner:
                 post_transition_data["reward"] = [(reward,)]
             else:
                 post_transition_data["reward"] = [tuple(reward)]
+
+            # ▼ rect도 같은 ts에 같이 저장 (filled 타이밍 어긋나지 않게)
+            if rect is not None:
+                # EpisodeBatch.update는 list → tensor 변환을 스스로 처리
+                post_transition_data["rect"] = [rect.squeeze(0)]
 
             self.batch.update(post_transition_data, ts=self.t)
 
@@ -122,7 +142,15 @@ class EpisodeRunner:
         actions = self.mac.select_actions(
             self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode
         )
-        self.batch.update({"actions": actions}, ts=self.t)
+        last_update = {"actions": actions}
+
+         # --- 마지막 rect도 기록 (타깃용 rect[:, 1:] 맞추기) ---
+         if getattr(self.args, "use_hidden_state_transformer", False):
+             rect_last = self.mac.get_last_transformer_out()
+             if rect_last is not None:
+                 last_update["rect"] = [rect_last.squeeze(0)]
+ 
+         self.batch.update(last_update, ts=self.t)
 
         cur_stats = self.test_stats if test_mode else self.train_stats
         cur_returns = self.test_returns if test_mode else self.train_returns
