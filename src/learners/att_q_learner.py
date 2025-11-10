@@ -65,14 +65,14 @@ class AttQLearner:
         self.log_stats_t = -self.args.learner_log_interval - 1
 
     # ---- 내부 유틸: MAC 시퀀스 수집(+rect 시퀀스) ----
-    def _collect_mac_seq(self, mac, batch):
+    def _collect_mac_seq(self, mac, batch, t_env, test_mode=False):
         mac_out = []
         rect_seq = []
         use_rect_runtime = hasattr(mac, "get_last_transformer_out")
         mac.init_hidden(batch.batch_size)
 
         for t in range(batch.max_seq_length):
-            out = mac.forward(batch, t=t)
+            out = mac.forward(batch, t=t, t_env=t_env, test_mode=test_mode)
             mac_out.append(out)
 
             if use_rect_runtime:
@@ -97,7 +97,7 @@ class AttQLearner:
         avail_actions = batch["avail_actions"]
 
         # Q 추정
-        mac_out, mac_rect_out = self._collect_mac_seq(self.mac, batch)
+        mac_out, mac_rect_out = self._collect_mac_seq(self.mac, batch, t_env)
         # 선택한 액션의 Q
         chosen_action_qvals = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # [B, T-1, N]
 
