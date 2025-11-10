@@ -1,7 +1,6 @@
 from functools import partial
 
 import numpy as np
-import torch as th
 import math
 
 from components.episode_buffer import EpisodeBatch
@@ -81,11 +80,7 @@ class EpisodeRunner:
     
             # args에 주입 (다른 모듈들이 참조할 수 있도록)
             setattr(self.args, "rect_dim", int(rect_dim))
-    
-            # 스키마에 rect 등록(없을 때만)
-            if "rect" not in scheme:
-                scheme["rect"] = {"vshape": (int(rect_dim),), "dtype": th.float32}
-            
+                
         self.new_batch = partial(
             EpisodeBatch,
             scheme,
@@ -136,11 +131,6 @@ class EpisodeRunner:
                 self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode
             )
 
-            # ▼ rect 가져오기 (B=1 가정)
-            rect = None
-            if getattr(self.args, "use_hidden_state_transformer", False):
-                rect = self.mac.get_last_transformer_out()  # shape: (1, R) or (B, R)
-
             _, reward, terminated, truncated, env_info = self.env.step(actions[0])
             terminated = terminated or truncated
             if test_mode and self.args.render:
@@ -155,11 +145,6 @@ class EpisodeRunner:
                 post_transition_data["reward"] = [(reward,)]
             else:
                 post_transition_data["reward"] = [tuple(reward)]
-
-            # ▼ rect도 같은 ts에 같이 저장 (filled 타이밍 어긋나지 않게)
-            if rect is not None:
-                # EpisodeBatch.update는 list → tensor 변환을 스스로 처리
-                post_transition_data["rect"] = [rect.squeeze(0)]
 
             self.batch.update(post_transition_data, ts=self.t)
 
@@ -179,12 +164,6 @@ class EpisodeRunner:
             self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode
         )
         last_update = {"actions": actions}
-
-         # --- 마지막 rect도 기록 (타깃용 rect[:, 1:] 맞추기) ---
-        if getattr(self.args, "use_hidden_state_transformer", False):
-            rect_last = self.mac.get_last_transformer_out()
-            if rect_last is not None:
-                last_update["rect"] = [rect_last.squeeze(0)]
  
         self.batch.update(last_update, ts=self.t)
 
