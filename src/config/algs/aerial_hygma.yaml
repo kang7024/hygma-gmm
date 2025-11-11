@@ -42,10 +42,6 @@ hypernet_embed: 64
 # ---------------- AERIAL Transformer / rect ----------------
 use_hidden_state_transformer: True
 
-# rect_dim은 환경 state_shape의 총 차원과 반드시 일치해야 함 (예: SMAC 맵마다 상이)
-# 예시 값이므로, 실제 실행 전 env.get_env_info()["state_shape"] 확인 후 수정하세요.
-rect_dim: 128    # <<< 반드시 np.prod(state_shape)로 맞추기!
-
 # 트랜스포머 내부 차원 (에이전트 RNN hidden_dim과 동일해야 함)
 # 보통 agent RNN hidden_dim이 64/128 등으로 세팅되어 있음
 hidden_state_transformer_dim: 64
