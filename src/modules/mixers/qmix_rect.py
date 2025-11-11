@@ -114,14 +114,14 @@ class QMixerRect(nn.Module):
         # Normalize rects to shape (-1, R) aligned with time if present
         if rects.dim() == 3:
             # (B, T, R)  -> (-1, R)
-            rects = rects.view(-1, self.rect_dim)
+            rects = rects.reshape(-1, rects.shape[-1])
         elif rects.dim() == 2:
             # (B, R) -> broadcast across time if needed
             if time_len > 1:
-                rects = rects.unsqueeze(1).expand(bs, time_len, -1).contiguous()
-                rects = rects.view(-1, self.rect_dim)
+                rects = rects.unsqueeze(1).expand(bs, time_len, -1)
+                rects = rects.reshape(-1, rects.shape[-1])
             else:
-                rects = rects.view(-1, self.rect_dim)
+                rects = rects.reshape(-1, rects.shape[-1])
         else:
             raise ValueError(f"rects shape not supported: {rects.shape}")
 
@@ -138,7 +138,7 @@ class QMixerRect(nn.Module):
         w_final = w_final.view(-1, self.embed_dim, 1)            # (-1, E, 1)
 
         # Rect-dependent V
-        v = self.V(rects).view(-1, 1, 1)                         # (-1, 1, 1)
+        v = self.V(rects).reshape(-1, 1, 1)                         # (-1, 1, 1)
 
         # Final output
         y = th.bmm(hidden, w_final) + v                          # (-1, 1, 1)
