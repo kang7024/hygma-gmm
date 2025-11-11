@@ -97,6 +97,20 @@ class QMixerRect(nn.Module):
         else:
             raise ValueError(f"agent_qs shape not supported: {agent_qs.shape}")
 
+        # ----- (중요) rects 사전 검증 + detach -----
+        # AERIAL 권장: rects는 그래프에서 분리
+        rects = rects.detach()
+    
+        # 마지막 차원이 rect_dim과 일치해야 함
+        assert rects.size(-1) == self.rect_dim, \
+            f"Rect dim mismatch: expected {self.rect_dim}, got {rects.size(-1)}"
+    
+        # 3D rects라면 시간 길이도 맞춰야 함
+        if rects.dim() == 3:
+            assert rects.size(1) == time_len, \
+                f"Time length mismatch: qvals T={time_len}, rects T={rects.size(1)}"
+
+
         # Normalize rects to shape (-1, R) aligned with time if present
         if rects.dim() == 3:
             # (B, T, R)  -> (-1, R)
