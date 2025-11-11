@@ -23,17 +23,13 @@ class QMixerRect(nn.Module):
         self.args = args
         self.n_agents = args.n_agents
 
-        # rect_dim 우선 사용, 없으면 state_shape나 args.rect_dim에서 유도
-        if rect_dim is not None:
-            self.state_dim = int(rect_dim)
-        else:
-            if getattr(args, "state_shape", None) is not None:
-                self.state_dim = int(np.prod(args.state_shape))
-            else:
-                # EpisodeRunner.setup에서 args.rect_dim을 세팅하도록 했으므로 여기서도 fallback
-                self.state_dim = int(getattr(args, "rect_dim"))
-
-        self.rect_dim = self.state_dim
+        # rect_dim은 Transformer 출력 차원으로 고정
+        if rect_dim is None:
+            rect_dim = getattr(args, "rect_dim", None) or getattr(args, "hidden_state_transformer_dim", None)
+            assert rect_dim is not None, "rect_dim 또는 hidden_state_transformer_dim이 지정되어야 합니다."
+    
+        # rect_dim을 그대로 사용
+        self.rect_dim = int(rect_dim)
         self.embed_dim = args.mixing_embed_dim
 
         # Hypernetwork setup (same options as original QMixer)
