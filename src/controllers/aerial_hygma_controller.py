@@ -66,7 +66,9 @@ class HYGMA(nn.Module):
             rnn_hidden_dim = getattr(self.args, "hidden_dim", None)
             if rnn_hidden_dim is None:
                 raise ValueError("args.hidden_dim (에이전트 RNN hidden 크기)가 필요합니다.")
-            rect_dim = int(getattr(self.args, "rect_dim", rnn_hidden_dim))
+            rect_dim = int(getattr(self.args, "hidden_state_transformer_dim",
+                           getattr(self.args, "rect_dim", rnn_hidden_dim)))
+
 
             self.hidden_transformer = HiddenStateTransformer(
                 input_dim=rnn_hidden_dim,
