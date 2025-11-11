@@ -5,49 +5,45 @@ import torch.nn as nn
 
 
 class _SelfAttentionHead(nn.Module):
-    """Single-head self-attention over the agent axis."""
-    def __init__(self, input_dim: int, attn_dim: int, dropout: float) -> None:
+    def __init__(self, hidden_dim: int, dropout: float) -> None:
         super().__init__()
-        self.q = nn.Linear(input_dim, attn_dim)
-        self.k = nn.Linear(input_dim, attn_dim)
-        self.v = nn.Linear(input_dim, attn_dim)
+        self.q = nn.Linear(hidden_dim, hidden_dim)
+        self.k = nn.Linear(hidden_dim, hidden_dim)
+        self.v = nn.Linear(hidden_dim, hidden_dim)
         self.dropout = nn.Dropout(dropout)
-        self.scale = math.sqrt(attn_dim)
+        self.scale = math.sqrt(hidden_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: [B, N, H]
-        q, k, v = self.q(x), self.k(x), self.v(x)  # [B, N, D]
-        attn = torch.softmax(q @ k.transpose(1, 2) / self.scale, dim=-1)  # [B, N, N]
+        q, k, v = self.q(x), self.k(x), self.v(x)
+        attn = torch.softmax(q @ k.transpose(1, 2) / self.scale, dim=-1)
         attn = self.dropout(attn)
-        return attn @ v  # [B, N, D]
+        return attn @ v
 
 
 class _TransformerBlock(nn.Module):
-    """AERIAL-style block: multi-head (sum), LN, FFN, residual."""
-    def __init__(self, input_dim: int, n_heads: int, attn_dim: int,
+    def __init__(self, hidden_dim: int, n_heads: int,
                  ff_multiplier: int, dropout: float) -> None:
         super().__init__()
-        self.heads = nn.ModuleList(
-            [_SelfAttentionHead(input_dim, attn_dim, dropout) for _ in range(n_heads)]
-        )
+        self.heads = nn.ModuleList([
+            _SelfAttentionHead(hidden_dim, dropout) for _ in range(n_heads)
+        ])
         self.attn_dropout = nn.Dropout(dropout)
-        self.pre_norm = nn.LayerNorm(input_dim)
-        self.post_norm = nn.LayerNorm(input_dim)
-        ff_hidden = input_dim * ff_multiplier
+        self.norm1 = nn.LayerNorm(hidden_dim)
+        self.norm2 = nn.LayerNorm(hidden_dim)
+
+        ff_hidden = hidden_dim * ff_multiplier
         self.ffn = nn.Sequential(
-            nn.Linear(input_dim, ff_hidden),
+            nn.Linear(hidden_dim, ff_hidden),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(ff_hidden, input_dim),
+            nn.Linear(ff_hidden, hidden_dim),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: [B, N, H]
-        heads_out: List[torch.Tensor] = [h(x) for h in self.heads]  # each [B,N,D]
-        attn_sum = torch.stack(heads_out, dim=0).sum(dim=0)         # [B, N, D]
-        x = self.pre_norm(x + self.attn_dropout(attn_sum))
-        x = self.post_norm(x + self.ffn(x))
-        return x  # [B, N, H]
+        attn_sum = torch.stack([h(x) for h in self.heads], dim=0).sum(dim=0)
+        x = self.norm1(x + self.attn_dropout(attn_sum))
+        x = self.norm2(x + self.ffn(x))
+        return x
 
 
 class HiddenStateTransformer(nn.Module):
