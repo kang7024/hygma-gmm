@@ -37,11 +37,10 @@ class AttQLearner:
             elif args.mixer == "qmix":
                 self.mixer = QMixer(args)
             elif args.mixer == "qmix_rect":
-                assert QMixerRect is not None, "QMixerRect not found. Please add modules/mixers/qmix_rect.py"
-                # rect_dim은 args.rect_dim (없으면 hidden_dim 사용)
-                rect_dim = getattr(args, "rect_dim", getattr(args, "hidden_dim", None))
-                assert rect_dim is not None, "rect_dim(or hidden_dim) must be provided for qmix_rect"
-                self.mixer = QMixerRect(args, rect_dim=getattr(args, "rect_dim", None))
+                assert QMixerRect is not None
+                rect_dim = getattr(args, "rect_dim", None) or getattr(args, "hidden_state_transformer_dim", None)
+                assert rect_dim is not None, "rect_dim 또는 hidden_state_transformer_dim 필요"
+                self.mixer = QMixerRect(args, rect_dim=int(rect_dim))
             else:
                 raise ValueError(f"Mixer {args.mixer} not recognised.")
             self.params += list(self.mixer.parameters())
