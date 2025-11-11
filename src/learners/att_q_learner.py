@@ -101,7 +101,7 @@ class AttQLearner:
         chosen_action_qvals = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # [B, T-1, N]
 
         # 타깃 Q
-        target_mac_out, target_rect_out = self._collect_mac_seq(self.target_mac, batch)
+        target_mac_out, target_rect_out = self._collect_mac_seq(self.target_mac, batch, t_env)
         target_mac_out = target_mac_out[:, 1:]  # [B, T-1, N, A]
 
         # 사용 불가 액션 마스킹
